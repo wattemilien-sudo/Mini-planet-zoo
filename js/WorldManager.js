@@ -1,4 +1,5 @@
 import { GAME_CONFIG } from './config.js';
+import { Animal } from './Animals.js';
 
 export class WorldManager {
     constructor(containerId, state) {
