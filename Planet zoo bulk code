@@ -1,0 +1,1212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mini Planet Zoo 3D - Expanded Edition</title>
+    <!-- Three.js Library & OrbitControls -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        :root {
+            --bg: #111827;
+            --panel: #1f2937;
+            --text: #f9fafb;
+            --accent: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --info: #3b82f6;
+        }
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            user-select: none;
+            overflow: hidden;
+        }
+        #game-container {
+            position: relative;
+            width: 700px;
+            height: 650px;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 4px solid var(--panel);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+        #webgl-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        #ui-panel {
+            width: 360px;
+            height: 650px;
+            overflow-y: auto;
+            background-color: var(--panel);
+            padding: 20px;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            box-sizing: border-box;
+        }
+        #ui-panel::-webkit-scrollbar { width: 8px; }
+        #ui-panel::-webkit-scrollbar-track { background: #111827; border-radius: 4px; }
+        #ui-panel::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
+
+        .stat-box {
+            background: rgba(0,0,0,0.3);
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid var(--accent);
+            flex-shrink: 0;
+        }
+        h2, h3 { margin: 0 0 10px 0; }
+        .stat {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-size: 1.05em;
+        }
+        .stat span:last-child { font-weight: bold; }
+        
+        .build-menu {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        button {
+            background-color: #374151;
+            color: white;
+            border: 2px solid transparent;
+            padding: 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9em;
+            display: flex;
+            justify-content: space-between;
+            transition: 0.2s;
+            text-align: left;
+        }
+        button:hover { background-color: var(--accent); }
+        button.active {
+            border-color: var(--accent);
+            background-color: rgba(16, 185, 129, 0.25);
+        }
+        .btn-text {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            padding-right: 10px;
+        }
+        #message-box {
+            color: var(--warning);
+            font-weight: bold;
+            min-height: 42px;
+            text-align: center;
+            font-size: 0.88em;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .tip {
+            font-size: 0.82em;
+            color: #9ca3af;
+            font-style: italic;
+            margin-top: -4px;
+        }
+
+        /* Modal Overlays */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.75);
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        .modal-content {
+            background: var(--panel);
+            padding: 25px;
+            border-radius: 12px;
+            width: 350px;
+            text-align: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.6);
+            border: 2px solid var(--info);
+        }
+        .progress-bar-container {
+            background: #111827;
+            border-radius: 4px;
+            overflow: hidden;
+            height: 16px;
+            margin: 6px 0 12px 0;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .progress-bar {
+            height: 100%;
+            width: 100%;
+            transition: width 0.3s;
+        }
+        #health-bar { background-color: var(--danger); }
+        #happiness-bar { background-color: var(--warning); }
+
+        #minigame-area {
+            position: relative;
+            width: 100%;
+            height: 180px;
+            background: #111827;
+            border-radius: 8px;
+            margin-top: 15px;
+            overflow: hidden;
+            display: none;
+            border: 1px dashed var(--accent);
+        }
+        .mg-target {
+            position: absolute;
+            width: 38px;
+            height: 38px;
+            background: var(--accent);
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            transform: scale(0);
+            animation: popIn 0.2s forwards;
+        }
+        @keyframes popIn { to { transform: scale(1); } }
+
+        #controls-hint {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.8em;
+            color: #d1d5db;
+            pointer-events: none;
+        }
+
+        /* Custom Input for Building Editor */
+        .price-input {
+            background: #111827;
+            color: white;
+            border: 1px solid #4b5563;
+            padding: 8px;
+            border-radius: 4px;
+            width: 80px;
+            font-size: 1.1em;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <canvas id="webgl-canvas"></canvas>
+        <div id="controls-hint">🖱️ <b>Left-Click + Drag:</b> Build | 🖱️ <b>Right-Click + Drag:</b> Orbit Camera</div>
+    </div>
+
+    <!-- Animal Care & Minigame Modal -->
+    <div id="animal-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 id="modal-title">Animal Care</h3>
+            <div id="modal-info" style="font-size: 0.9em; color: #9ca3af; margin-bottom: 10px;"></div>
+            
+            <div style="text-align: left; font-size: 0.9em;">
+                Health: <span id="val-health">100</span>%
+                <div class="progress-bar-container"><div id="health-bar" class="progress-bar"></div></div>
+                Happiness: <span id="val-happiness">100</span>%
+                <div class="progress-bar-container"><div id="happiness-bar" class="progress-bar"></div></div>
+            </div>
+
+            <button id="play-minigame-btn" style="background-color: var(--info); width: 100%; justify-content: center; margin-top: 10px;">
+                🎮 Play Care Mini-Game
+            </button>
+
+            <div id="minigame-area">
+                <div id="mg-instructions" style="font-size: 0.85em; color: var(--warning); padding: 10px;">Click the targets before they disappear!</div>
+            </div>
+
+            <button id="close-modal-btn" style="background-color: #6b7280; width: 100%; justify-content: center; margin-top: 15px;">
+                Close
+            </button>
+        </div>
+    </div>
+
+    <!-- Building Editor Modal -->
+    <div id="building-modal" class="modal-overlay">
+        <div class="modal-content" style="border-color: var(--accent);">
+            <h3 id="build-modal-title">Building Name</h3>
+            <div style="margin: 20px 0; display: flex; align-items: center; justify-content: center; gap: 10px;">
+                <label style="font-size: 1.1em;">Ticket Price: $</label>
+                <input type="number" id="build-price-input" class="price-input" min="0" max="200">
+            </div>
+            
+            <button id="save-build-btn" style="background-color: var(--accent); width: 100%; justify-content: center;">
+                💾 Save Changes
+            </button>
+            <button id="close-build-btn" style="background-color: #6b7280; width: 100%; justify-content: center; margin-top: 10px;">
+                Close
+            </button>
+        </div>
+    </div>
+
+    <div id="ui-panel">
+        <h2>Mini Planet Zoo 3D</h2>
+        
+        <div class="stat-box">
+            <div class="stat"><span>Money:</span> <span id="money-display" style="color: #10b981;">$1500</span></div>
+            <div class="stat"><span>Walking Visitors:</span> <span><span id="visitor-display">0</span> / <span id="capacity-display">0</span></span></div>
+            <div class="stat"><span>Zoo Appeal:</span> <span id="appeal-display">0</span></div>
+            <div class="stat" style="margin-top: 5px; font-size: 0.95em; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 5px;"><span>Staff:</span> <span id="staff-count">0</span></div>
+        </div>
+
+        <div id="message-box">Connect Car Parks to Zoo attractions with Stone Paths so visitors can enter!</div>
+
+        <div class="build-menu">
+            <h3>Staff Management</h3>
+            <div class="tip" style="color: var(--info);">Hire staff to clean trash automatically ($150 + $12 wage).</div>
+            <button id="hire-staff-btn" style="background-color: #2563eb;">
+                <span class="btn-text">👷 Hire Staff</span> <span>$150</span>
+            </button>
+
+            <h3>Infrastructure</h3>
+            <div class="tip" style="color: var(--accent);">💡 Visitors MUST use Stone Paths from Car Parks to enter!</div>
+            
+            <button class="tool-btn active" data-tool="pointer" data-cost="0">
+                <span class="btn-text">👆 Select / Edit</span> <span>$0</span>
+            </button>
+            <button class="tool-btn" data-tool="demolish" data-cost="0">
+                <span class="btn-text" style="color: #fca5a5;">💣 Demolish</span> <span>$0</span>
+            </button>
+            
+            <button class="tool-btn" data-tool="carpark" data-cost="200">
+                <span class="btn-text">🅿️ Car Park (Spawns Visitors)</span> <span>$200</span>
+            </button>
+            <button class="tool-btn" data-tool="path" data-cost="10">
+                <span class="btn-text">🪨 Stone Path</span> <span>$10</span>
+            </button>
+
+            <h3>Theme Park Rides</h3>
+            <button class="tool-btn" data-tool="carousel" data-cost="600" data-appeal="55">
+                <span class="btn-text">🎠 Carousel</span> <span>$600</span>
+            </button>
+            <button class="tool-btn" data-tool="ferriswheel" data-cost="800" data-appeal="80">
+                <span class="btn-text">🎡 Ferris Wheel</span> <span>$800</span>
+            </button>
+
+            <h3>Facilities & Shops</h3>
+            <button class="tool-btn" data-tool="toilet" data-cost="150" data-appeal="0">
+                <span class="btn-text">🚻 Restroom</span> <span>$150</span>
+            </button>
+            <button class="tool-btn" data-tool="lolly" data-cost="100" data-appeal="10">
+                <span class="btn-text">🍬 Lolly Shop</span> <span>$100</span>
+            </button>
+            <button class="tool-btn" data-tool="icecream" data-cost="200" data-appeal="22">
+                <span class="btn-text">🍦 Ice Cream</span> <span>$200</span>
+            </button>
+            <button class="tool-btn" data-tool="gift" data-cost="500" data-appeal="60">
+                <span class="btn-text">🎁 Gift Shop</span> <span>$500</span>
+            </button>
+
+            <h3>Habitat Types</h3>
+            <button class="tool-btn" data-tool="habitat_savanna" data-cost="100">
+                <span class="btn-text">🦁 Savanna Habitat</span> <span>$100</span>
+            </button>
+            <button class="tool-btn" data-tool="habitat_rainforest" data-cost="120">
+                <span class="btn-text">🌴 Rainforest Habitat</span> <span>$120</span>
+            </button>
+            <button class="tool-btn" data-tool="habitat_forest" data-cost="110">
+                <span class="btn-text">🌲 Forest Habitat</span> <span>$110</span>
+            </button>
+            <button class="tool-btn" data-tool="habitat_tundra" data-cost="130">
+                <span class="btn-text">❄️ Tundra Habitat</span> <span>$130</span>
+            </button>
+
+            <h3>Animals (Savanna)</h3>
+            <button class="tool-btn" data-tool="meerkat" data-cost="100" data-appeal="10">
+                <span class="btn-text">🐿️ Meerkat</span> <span>$100</span>
+            </button>
+            <button class="tool-btn" data-tool="zebra" data-cost="300" data-appeal="30">
+                <span class="btn-text">🦓 Zebra</span> <span>$300</span>
+            </button>
+            <button class="tool-btn" data-tool="giraffe" data-cost="800" data-appeal="75">
+                <span class="btn-text">🦒 Giraffe</span> <span>$800</span>
+            </button>
+            <button class="tool-btn" data-tool="lion" data-cost="1000" data-appeal="100">
+                <span class="btn-text">🦁 Lion</span> <span>$1000</span>
+            </button>
+            <button class="tool-btn" data-tool="elephant" data-cost="2000" data-appeal="200">
+                <span class="btn-text">🐘 Elephant</span> <span>$2000</span>
+            </button>
+
+            <h3>Animals (Rainforest)</h3>
+            <button class="tool-btn" data-tool="lemur" data-cost="150" data-appeal="15">
+                <span class="btn-text">🐒 Lemur</span> <span>$150</span>
+            </button>
+            <button class="tool-btn" data-tool="tiger" data-cost="900" data-appeal="90">
+                <span class="btn-text">🐅 Tiger</span> <span>$900</span>
+            </button>
+            <button class="tool-btn" data-tool="gorilla" data-cost="1200" data-appeal="110">
+                <span class="btn-text">🦍 Gorilla</span> <span>$1200</span>
+            </button>
+
+            <h3>Animals (Forest)</h3>
+            <button class="tool-btn" data-tool="wolf" data-cost="350" data-appeal="45">
+                <span class="btn-text">🐺 Wolf</span> <span>$350</span>
+            </button>
+            <button class="tool-btn" data-tool="redpanda" data-cost="400" data-appeal="40">
+                <span class="btn-text">🦝 Red Panda</span> <span>$400</span>
+            </button>
+            <button class="tool-btn" data-tool="bear" data-cost="600" data-appeal="60">
+                <span class="btn-text">🐻 Brown Bear</span> <span>$600</span>
+            </button>
+
+            <h3>Animals (Tundra)</h3>
+            <button class="tool-btn" data-tool="penguin" data-cost="250" data-appeal="25">
+                <span class="btn-text">🐧 Penguin</span> <span>$250</span>
+            </button>
+            <button class="tool-btn" data-tool="seal" data-cost="300" data-appeal="35">
+                <span class="btn-text">🦭 Seal</span> <span>$300</span>
+            </button>
+            <button class="tool-btn" data-tool="polarbear" data-cost="850" data-appeal="85">
+                <span class="btn-text">🐻‍❄️ Polar Bear</span> <span>$850</span>
+            </button>
+        </div>
+    </div>
+
+<script>
+    // Grid Setup
+    const GRID_SIZE = 18;
+    const TILE_UNITS = 1.2;
+    const HALF_GRID = (GRID_SIZE * TILE_UNITS) / 2;
+
+    // Tile Types
+    const EMPTY = 0, PATH = 1, HABITAT = 2, SHOP = 3, TOILET = 4, CARPARK = 5, RIDE = 6;
+
+    // Emojis for visitors
+    const VISITOR_EMOJIS = ['🧑', '👨', '👩', '👧', '👦', '👵', '👴', '👱‍♀️'];
+
+    // Game Database (Expanded)
+    const ANIMAL_DATA = {
+        'meerkat': { name: 'Meerkat', emoji: '🐿️', habitat: 'savanna', color: 0xd4a373 },
+        'zebra': { name: 'Zebra', emoji: '🦓', habitat: 'savanna', color: 0xd4a373 },
+        'giraffe': { name: 'Giraffe', emoji: '🦒', habitat: 'savanna', color: 0xd4a373 },
+        'lion': { name: 'Lion', emoji: '🦁', habitat: 'savanna', color: 0xd4a373 },
+        'elephant': { name: 'Elephant', emoji: '🐘', habitat: 'savanna', color: 0xd4a373 },
+
+        'lemur': { name: 'Lemur', emoji: '🐒', habitat: 'rainforest', color: 0x2d6a4f },
+        'tiger': { name: 'Tiger', emoji: '🐅', habitat: 'rainforest', color: 0x2d6a4f },
+        'gorilla': { name: 'Gorilla', emoji: '🦍', habitat: 'rainforest', color: 0x2d6a4f },
+
+        'wolf': { name: 'Wolf', emoji: '🐺', habitat: 'forest', color: 0x588157 },
+        'redpanda': { name: 'Red Panda', emoji: '🦝', habitat: 'forest', color: 0x588157 },
+        'bear': { name: 'Brown Bear', emoji: '🐻', habitat: 'forest', color: 0x588157 },
+
+        'penguin': { name: 'Penguin', emoji: '🐧', habitat: 'tundra', color: 0x90e0ef },
+        'seal': { name: 'Seal', emoji: '🦭', habitat: 'tundra', color: 0x90e0ef },
+        'polarbear': { name: 'Polar Bear', emoji: '🐻‍❄️', habitat: 'tundra', color: 0x90e0ef }
+    };
+
+    const RIDE_DATA = {
+        'carousel': { name: 'Carousel', emoji: '🎠' },
+        'ferriswheel': { name: 'Ferris Wheel', emoji: '🎡' }
+    };
+    
+    const SHOP_DATA = {
+        'lolly': { name: 'Lolly Shop', emoji: '🍬' },
+        'icecream': { name: 'Ice Cream Stand', emoji: '🍦' },
+        'gift': { name: 'Gift Shop', emoji: '🎁' }
+    };
+
+    const HABITAT_NAMES = { 'savanna': 'Savanna', 'rainforest': 'Rainforest', 'forest': 'Forest', 'tundra': 'Tundra' };
+    const HABITAT_COLORS = { 'savanna': 0xd4a373, 'rainforest': 0x2d6a4f, 'forest': 0x588157, 'tundra': 0x90e0ef };
+
+    // Game State
+    let state = {
+        money: 1500, appeal: 0, visitors: 0, staffCount: 0,
+        currentTool: 'pointer', currentCost: 0, currentAppeal: 0,
+        grid: Array.from({length: GRID_SIZE}, () => Array(GRID_SIZE).fill(EMPTY)),
+        gridMeshes: Array.from({length: GRID_SIZE}, () => Array(GRID_SIZE).fill(null)),
+        animals: [], shops: [], toilets: [], habitats: [], trash: [], carParks: [], rides: [],
+        visitorEntities: []
+    };
+
+    let selectedAnimal = null, minigameActive = false, mgScore = 0, mgTimer = null;
+    let selectedBuilding = null; // Used for Price Editor
+
+    // Three.js Scene Setup
+    const container = document.getElementById('game-container');
+    const canvas = document.getElementById('webgl-canvas');
+    
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x111827);
+
+    const camera = new THREE.PerspectiveCamera(40, container.clientWidth / container.clientHeight, 0.1, 1000);
+    camera.position.set(18, 22, 26);
+
+    const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+    // Orbit Controls
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.target.set(0, 0, 0);
+    controls.mouseButtons = { LEFT: THREE.MOUSE.NONE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE };
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+
+    // Lighting
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.65);
+    scene.add(ambientLight);
+
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.7);
+    dirLight.position.set(20, 30, 15);
+    dirLight.castShadow = true;
+    dirLight.shadow.mapSize.width = 1024;
+    dirLight.shadow.mapSize.height = 1024;
+    scene.add(dirLight);
+
+    // Ground Plane & Grid
+    const groundGeo = new THREE.PlaneGeometry(GRID_SIZE * TILE_UNITS, GRID_SIZE * TILE_UNITS);
+    const groundMat = new THREE.MeshStandardMaterial({ color: 0x22c55e, roughness: 0.9 });
+    const groundMesh = new THREE.Mesh(groundGeo, groundMat);
+    groundMesh.rotation.x = -Math.PI / 2;
+    groundMesh.receiveShadow = true;
+    scene.add(groundMesh);
+
+    const gridHelper = new THREE.GridHelper(GRID_SIZE * TILE_UNITS, GRID_SIZE, 0xffffff, 0x15803d);
+    gridHelper.position.y = 0.01;
+    scene.add(gridHelper);
+
+    // Hover Highlight Cursor
+    const hoverGeo = new THREE.BoxGeometry(TILE_UNITS, 0.08, TILE_UNITS);
+    const hoverMat = new THREE.MeshBasicMaterial({ color: 0xfbc531, transparent: true, opacity: 0.5 });
+    const hoverMesh = new THREE.Mesh(hoverGeo, hoverMat);
+    hoverMesh.visible = false;
+    scene.add(hoverMesh);
+
+    // Emoji Texture Helper
+    function createEmojiTexture(emoji) {
+        const c = document.createElement('canvas');
+        c.width = 128; c.height = 128;
+        const ctx = c.getContext('2d');
+        ctx.font = '80px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(emoji, 64, 68);
+        return new THREE.CanvasTexture(c);
+    }
+
+    function createEmojiSprite(emoji, scale = 1.0) {
+        const mat = new THREE.SpriteMaterial({ map: createEmojiTexture(emoji), transparent: true });
+        const sprite = new THREE.Sprite(mat);
+        sprite.scale.set(scale, scale, 1);
+        return sprite;
+    }
+
+    // Coordinates Conversion
+    function gridToWorld(r, c) {
+        return {
+            x: (c * TILE_UNITS) - HALF_GRID + (TILE_UNITS / 2),
+            z: (r * TILE_UNITS) - HALF_GRID + (TILE_UNITS / 2)
+        };
+    }
+
+    function worldToGrid(x, z) {
+        const c = Math.floor((x + HALF_GRID) / TILE_UNITS);
+        const r = Math.floor((z + HALF_GRID) / TILE_UNITS);
+        return { r, c };
+    }
+
+    // Building Mesh Builders
+    function buildTileMesh(type, subType = '') {
+        const group = new THREE.Group();
+        if (type === PATH) {
+            const mat = new THREE.MeshStandardMaterial({ color: 0x9ca3af, roughness: 0.8 });
+            const geo = new THREE.BoxGeometry(TILE_UNITS * 0.95, 0.06, TILE_UNITS * 0.95);
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.y = 0.03;
+            mesh.receiveShadow = true;
+            group.add(mesh);
+        } else if (type === HABITAT) {
+            const color = HABITAT_COLORS[subType] || 0xd4a373;
+            const mat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.9 });
+            const geo = new THREE.BoxGeometry(TILE_UNITS * 0.96, 0.05, TILE_UNITS * 0.96);
+            const base = new THREE.Mesh(geo, mat);
+            base.position.y = 0.025;
+            group.add(base);
+
+            const fenceMat = new THREE.MeshStandardMaterial({ color: 0x78350f });
+            const postGeo = new THREE.BoxGeometry(0.1, 0.4, 0.1);
+            [[-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5], [0.5, 0.5]].forEach(([fx, fz]) => {
+                const post = new THREE.Mesh(postGeo, fenceMat);
+                post.position.set(fx * (TILE_UNITS * 0.9), 0.2, fz * (TILE_UNITS * 0.9));
+                group.add(post);
+            });
+        } else if (type === CARPARK) {
+            const mat = new THREE.MeshStandardMaterial({ color: 0x374151 });
+            const geo = new THREE.BoxGeometry(TILE_UNITS * 0.96, 0.06, TILE_UNITS * 0.96);
+            const base = new THREE.Mesh(geo, mat);
+            base.position.y = 0.03;
+            group.add(base);
+
+            const sprite = createEmojiSprite('🅿️', 0.8);
+            sprite.position.y = 0.5;
+            group.add(sprite);
+        } else if (type === SHOP || type === TOILET) {
+            const baseMat = new THREE.MeshStandardMaterial({ color: type === TOILET ? 0xe5e7eb : 0xf3f4f6 });
+            const bodyGeo = new THREE.BoxGeometry(0.8, 0.6, 0.8);
+            const body = new THREE.Mesh(bodyGeo, baseMat);
+            body.position.y = 0.3;
+            group.add(body);
+
+            let emoji = '🚻';
+            if (SHOP_DATA[subType]) emoji = SHOP_DATA[subType].emoji;
+
+            const sprite = createEmojiSprite(emoji, 0.9);
+            sprite.position.y = 0.9;
+            group.add(sprite);
+        } else if (type === RIDE) {
+            const baseMat = new THREE.MeshStandardMaterial({ color: 0x8b5cf6 });
+            const baseGeo = new THREE.CylinderGeometry(0.5, 0.5, 0.1, 16);
+            const base = new THREE.Mesh(baseGeo, baseMat);
+            base.position.y = 0.05;
+            group.add(base);
+
+            const sprite = createEmojiSprite(RIDE_DATA[subType]?.emoji || '🎠', 1.1);
+            sprite.position.y = 0.8;
+            group.add(sprite);
+        }
+        return group;
+    }
+
+    // Interactive Drag-to-Build Mechanics
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    let isMouseDown = false;
+    let lastPlacedTile = { r: -1, c: -1 };
+
+    function updateRaycast(e) {
+        const rect = renderer.domElement.getBoundingClientRect();
+        mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObject(groundMesh);
+        return intersects.length > 0 ? intersects[0].point : null;
+    }
+
+    renderer.domElement.addEventListener('pointerdown', (e) => {
+        if (e.button !== 0) return; // Left click only
+        isMouseDown = true;
+        const pt = updateRaycast(e);
+        if (pt) {
+            const { r, c } = worldToGrid(pt.x, pt.z);
+            if (r >= 0 && r < GRID_SIZE && c >= 0 && c < GRID_SIZE) {
+                lastPlacedTile = { r, c };
+                handleGridClick(r, c, true);
+            }
+        }
+    });
+
+    renderer.domElement.addEventListener('pointermove', (e) => {
+        const pt = updateRaycast(e);
+        if (pt) {
+            const { r, c } = worldToGrid(pt.x, pt.z);
+            if (r >= 0 && r < GRID_SIZE && c >= 0 && c < GRID_SIZE) {
+                const pos = gridToWorld(r, c);
+                hoverMesh.position.set(pos.x, 0.04, pos.z);
+                
+                // Color hover based on tool
+                if (state.currentTool === 'demolish') {
+                    hoverMesh.material.color.setHex(0xfca5a5);
+                } else if (state.currentTool === 'pointer') {
+                    hoverMesh.material.color.setHex(0x60a5fa);
+                } else {
+                    hoverMesh.material.color.setHex(0xfbc531);
+                }
+                hoverMesh.visible = true;
+
+                if (isMouseDown && (r !== lastPlacedTile.r || c !== lastPlacedTile.c)) {
+                    lastPlacedTile = { r, c };
+                    handleGridClick(r, c, false);
+                }
+                return;
+            }
+        }
+        hoverMesh.visible = false;
+    });
+
+    window.addEventListener('pointerup', () => {
+        isMouseDown = false;
+        lastPlacedTile = { r: -1, c: -1 };
+    });
+
+    // Grid Actions
+    function handleGridClick(r, c, isInitialClick = true) {
+        // ALWAYS check for chore interactions first
+        let clickedToilet = state.toilets.find(t => t.r === r && t.c === c);
+        if (clickedToilet && clickedToilet.isDirty && !clickedToilet.isCleaning) {
+            clickedToilet.isCleaning = true;
+            clickedToilet.cleanTimer = 5;
+            showMessage("Cleaning restroom... Please wait 5s.", "var(--info)");
+            return;
+        }
+
+        let clickedTrashIndex = state.trash.findIndex(t => t.r === r && t.c === c);
+        if (clickedTrashIndex !== -1) {
+            scene.remove(state.trash[clickedTrashIndex].mesh);
+            state.trash.splice(clickedTrashIndex, 1);
+            state.money += 2;
+            showMessage("Cleaned trash! Earned $2.", "var(--accent)");
+            updateHUD();
+            return;
+        }
+
+        const currentTile = state.grid[r][c];
+
+        // NEW SELECT / EDIT LOGIC
+        if (state.currentTool === 'pointer') {
+            if (!isInitialClick) return; // Don't drag-open menus
+            
+            let clickedAnimal = state.animals.find(a => a.r === r && a.c === c);
+            if (clickedAnimal) {
+                openAnimalModal(clickedAnimal);
+                return;
+            }
+
+            let clickedRide = state.rides.find(rd => rd.r === r && rd.c === c);
+            if (clickedRide) {
+                let info = RIDE_DATA[clickedRide.type];
+                openBuildingModal(clickedRide, `${info.emoji} ${info.name}`);
+                return;
+            }
+
+            let clickedShop = state.shops.find(s => s.r === r && s.c === c);
+            if (clickedShop) {
+                let info = SHOP_DATA[clickedShop.type];
+                openBuildingModal(clickedShop, `${info.emoji} ${info.name}`);
+                return;
+            }
+            return;
+        }
+
+        // NEW DEMOLISH LOGIC
+        if (state.currentTool === 'demolish') {
+            if (currentTile !== EMPTY) {
+                if (state.gridMeshes[r][c]) {
+                    scene.remove(state.gridMeshes[r][c]);
+                    state.gridMeshes[r][c] = null;
+                }
+                state.animals.forEach(a => { if(a.r===r && a.c===c) scene.remove(a.mesh); });
+                state.animals = state.animals.filter(a => !(a.r === r && a.c === c));
+                state.shops = state.shops.filter(s => !(s.r === r && s.c === c));
+                state.toilets = state.toilets.filter(t => !(t.r === r && t.c === c));
+                state.habitats = state.habitats.filter(h => !(h.r === r && h.c === c));
+                state.carParks = state.carParks.filter(cp => !(cp.r === r && cp.c === c));
+                state.rides = state.rides.filter(rd => !(rd.r === r && rd.c === c));
+                state.grid[r][c] = EMPTY;
+                calculateAppeal();
+                updateHUD();
+            }
+            return;
+        }
+
+        // BUILDING LOGIC
+        if (state.money < state.currentCost) {
+            if (isInitialClick) showMessage("Not enough money!", "var(--danger)");
+            return;
+        }
+
+        const place3DMesh = (type, subType = '') => {
+            state.money -= state.currentCost;
+            state.grid[r][c] = type;
+            const pos = gridToWorld(r, c);
+            const meshGroup = buildTileMesh(type, subType);
+            meshGroup.position.set(pos.x, 0, pos.z);
+            scene.add(meshGroup);
+            state.gridMeshes[r][c] = meshGroup;
+        };
+
+        if (state.currentTool === 'path' && currentTile === EMPTY) {
+            place3DMesh(PATH);
+            updateHUD();
+        } else if (state.currentTool === 'carpark' && currentTile === EMPTY) {
+            place3DMesh(CARPARK);
+            state.carParks.push({ r, c });
+            updateHUD();
+        } else if (state.currentTool in RIDE_DATA && currentTile === EMPTY) {
+            place3DMesh(RIDE, state.currentTool);
+            state.rides.push({ r, c, type: state.currentTool, appeal: state.currentAppeal, mesh: state.gridMeshes[r][c], ticketPrice: 15 });
+            calculateAppeal();
+            updateHUD();
+        } else if (state.currentTool.startsWith('habitat_') && currentTile === EMPTY) {
+            let habitatType = state.currentTool.replace('habitat_', '');
+            place3DMesh(HABITAT, habitatType);
+            state.habitats.push({ r, c, type: habitatType });
+            updateHUD();
+        } else if (state.currentTool === 'toilet' && currentTile === EMPTY) {
+            place3DMesh(TOILET);
+            state.toilets.push({ r, c, isDirty: false, isCleaning: false, cleanTimer: 0, mesh: state.gridMeshes[r][c] });
+            updateHUD();
+        } else if (state.currentTool in SHOP_DATA && currentTile === EMPTY) {
+            place3DMesh(SHOP, state.currentTool);
+            state.shops.push({ r, c, type: state.currentTool, appeal: state.currentAppeal, ticketPrice: 8 });
+            calculateAppeal();
+            updateHUD();
+        } else if (state.currentTool in ANIMAL_DATA) {
+            let habitat = state.habitats.find(h => h.r === r && h.c === c);
+            let animalInfo = ANIMAL_DATA[state.currentTool];
+
+            if (!habitat) {
+                if (isInitialClick) showMessage("Animals need a Habitat tile!", "var(--danger)");
+                return;
+            }
+            if (habitat.type !== animalInfo.habitat) {
+                if (isInitialClick) showMessage(`Needs a ${HABITAT_NAMES[animalInfo.habitat]} habitat!`, "var(--danger)");
+                return;
+            }
+            if (state.animals.some(a => a.r === r && a.c === c)) return;
+
+            state.money -= state.currentCost;
+            
+            const pos = gridToWorld(r, c);
+            const sprite = createEmojiSprite(animalInfo.emoji, 1.0);
+            sprite.position.set(pos.x, 0.6, pos.z);
+            scene.add(sprite);
+
+            state.animals.push({ 
+                r, c, type: state.currentTool, emoji: animalInfo.emoji,
+                baseAppeal: state.currentAppeal, health: 100, happiness: 100,
+                isSick: false, mesh: sprite
+            });
+            
+            calculateAppeal();
+            updateHUD();
+        }
+    }
+
+    // BFS PATHFINDING FOR VISITORS
+    function findPathToZooAttractions(startR, startC) {
+        let zooDestinationPathTiles = new Set();
+        for (let r = 0; r < GRID_SIZE; r++) {
+            for (let c = 0; c < GRID_SIZE; c++) {
+                let tileType = state.grid[r][c];
+                if (tileType === HABITAT || tileType === SHOP || tileType === RIDE || tileType === TOILET) {
+                    let neighbors = [
+                        {r: r-1, c: c}, {r: r+1, c: c}, {r: r, c: c-1}, {r: r, c: c+1}
+                    ];
+                    for (let n of neighbors) {
+                        if (n.r >= 0 && n.r < GRID_SIZE && n.c >= 0 && n.c < GRID_SIZE) {
+                            if (state.grid[n.r][n.c] === PATH) {
+                                zooDestinationPathTiles.add(`${n.r},${n.c}`);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (zooDestinationPathTiles.size === 0) return null; 
+
+        let queue = [ [{r: startR, c: startC}] ];
+        let visited = new Set();
+        visited.add(`${startR},${startC}`);
+
+        let validPaths = [];
+
+        while (queue.length > 0) {
+            let path = queue.shift();
+            let curr = path[path.length - 1];
+
+            if (zooDestinationPathTiles.has(`${curr.r},${curr.c}`) && path.length > 1) {
+                validPaths.push(path);
+                if (validPaths.length >= 3) break; 
+            }
+
+            let neighbors = [
+                {r: curr.r - 1, c: curr.c}, {r: curr.r + 1, c: curr.c},
+                {r: curr.r, c: curr.c - 1}, {r: curr.r, c: curr.c + 1}
+            ];
+
+            for (let n of neighbors) {
+                if (n.r >= 0 && n.r < GRID_SIZE && n.c >= 0 && n.c < GRID_SIZE) {
+                    let key = `${n.r},${n.c}`;
+                    let tileType = state.grid[n.r][n.c];
+                    if (!visited.has(key) && (tileType === PATH || tileType === CARPARK)) {
+                        visited.add(key);
+                        queue.push([...path, n]);
+                    }
+                }
+            }
+        }
+
+        if (validPaths.length === 0) return null;
+        return validPaths[Math.floor(Math.random() * validPaths.length)];
+    }
+
+    // VISITOR SPAWNING & PATH LOGIC
+    function trySpawnVisitor() {
+        if (state.carParks.length === 0) return;
+        let maxVisitors = getVisitorCapacity();
+        if (state.visitorEntities.length >= maxVisitors) return;
+
+        let cp = state.carParks[Math.floor(Math.random() * state.carParks.length)];
+        let calculatedPath = findPathToZooAttractions(cp.r, cp.c);
+
+        const startPos = gridToWorld(cp.r, cp.c);
+        
+        const visitorGroup = new THREE.Group();
+        const emojiChoice = VISITOR_EMOJIS[Math.floor(Math.random() * VISITOR_EMOJIS.length)];
+        const bodySprite = createEmojiSprite(emojiChoice, 0.65);
+        bodySprite.position.y = 0.45;
+        visitorGroup.add(bodySprite);
+
+        visitorGroup.position.set(startPos.x, 0, startPos.z);
+        scene.add(visitorGroup);
+
+        if (!calculatedPath) {
+            const moodBubble = createEmojiSprite('😠', 0.5);
+            moodBubble.position.y = 0.95;
+            visitorGroup.add(moodBubble);
+
+            state.visitorEntities.push({
+                r: cp.r, c: cp.c, homeCarPark: cp, mesh: visitorGroup, path: [{r: cp.r, c: cp.c}], pathIndex: 0, progress: 0, state: 'DISAPPOINTED', timer: 90
+            });
+            showMessage("⚠️ Visitors can't reach the zoo from Car Park! Build stone paths to connect them.", "var(--danger)");
+        } else {
+            state.visitorEntities.push({
+                r: cp.r, c: cp.c, homeCarPark: cp, mesh: visitorGroup, moodMesh: null, path: calculatedPath, pathIndex: 0, progress: 0, speed: 0.025 + Math.random() * 0.015, state: 'WALKING', timer: 0
+            });
+            state.visitors = state.visitorEntities.filter(v => v.state !== 'DISAPPOINTED').length;
+            updateHUD();
+        }
+    }
+
+    // UI & Logic Helpers
+    const moneyDisplay = document.getElementById('money-display');
+    const visitorDisplay = document.getElementById('visitor-display');
+    const capacityDisplay = document.getElementById('capacity-display');
+    const appealDisplay = document.getElementById('appeal-display');
+    const staffCountDisplay = document.getElementById('staff-count');
+    const messageBox = document.getElementById('message-box');
+    const buttons = document.querySelectorAll('.tool-btn');
+    const hireStaffBtn = document.getElementById('hire-staff-btn');
+
+    // Animal Modal UI
+    const animalModal = document.getElementById('animal-modal');
+    const animalModalTitle = animalModal.querySelector('#modal-title');
+    const modalInfo = document.getElementById('modal-info');
+    const valHealth = document.getElementById('val-health');
+    const healthBar = document.getElementById('health-bar');
+    const valHappiness = document.getElementById('val-happiness');
+    const happinessBar = document.getElementById('happiness-bar');
+    const playMinigameBtn = document.getElementById('play-minigame-btn');
+    const closeAnimalBtn = animalModal.querySelector('#close-modal-btn');
+    const minigameArea = document.getElementById('minigame-area');
+
+    // Building Modal UI
+    const buildingModal = document.getElementById('building-modal');
+    const buildModalTitle = document.getElementById('build-modal-title');
+    const buildPriceInput = document.getElementById('build-price-input');
+    const saveBuildBtn = document.getElementById('save-build-btn');
+    const closeBuildBtn = document.getElementById('close-build-btn');
+
+    hireStaffBtn.addEventListener('click', () => {
+        if (state.money < 150) { showMessage("Not enough money!", "var(--danger)"); return; }
+        state.money -= 150;
+        state.staffCount++;
+        showMessage("Hired a staff member!", "var(--accent)");
+        updateHUD();
+    });
+
+    buttons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            buttons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            state.currentTool = btn.dataset.tool;
+            state.currentCost = parseInt(btn.dataset.cost) || 0;
+            state.currentAppeal = parseInt(btn.dataset.appeal) || 0;
+            showMessage(""); 
+        });
+    });
+
+    let msgTimeout;
+    function showMessage(msg, color = "var(--warning)") {
+        messageBox.style.color = color;
+        messageBox.innerText = msg;
+        clearTimeout(msgTimeout);
+        if(msg) msgTimeout = setTimeout(() => messageBox.innerText = "", 5000);
+    }
+
+    function getVisitorCapacity() { return state.carParks.length * 15; }
+
+    function updateHUD() {
+        moneyDisplay.innerText = `$${Math.floor(state.money)}`;
+        visitorDisplay.innerText = state.visitors;
+        capacityDisplay.innerText = getVisitorCapacity();
+        appealDisplay.innerText = state.appeal;
+        staffCountDisplay.innerText = state.staffCount;
+    }
+
+    function calculateAppeal() {
+        let speciesCounts = {};
+        let total = 0;
+        state.animals.forEach(a => {
+            if (a.isSick) return;
+            speciesCounts[a.type] = (speciesCounts[a.type] || 0) + 1;
+            total += a.baseAppeal * Math.max(0.2, 1.0 - (speciesCounts[a.type] - 1) * 0.3);
+        });
+        state.shops.forEach(s => total += s.appeal);
+        state.rides.forEach(r => total += r.appeal);
+        state.appeal = Math.floor(total);
+    }
+
+    // Modal & Editor Logic
+    function openAnimalModal(animal) {
+        selectedAnimal = animal;
+        let info = ANIMAL_DATA[animal.type];
+        animalModalTitle.innerText = `${animal.emoji} ${info.name}`;
+        modalInfo.innerText = `Native Habitat: ${HABITAT_NAMES[info.habitat]} ${animal.isSick ? '⚠️ (SICK!)' : ''}`;
+        updateModalStats();
+        minigameArea.style.display = 'none';
+        playMinigameBtn.style.display = 'block';
+        animalModal.style.display = 'flex';
+    }
+
+    function updateModalStats() {
+        if (!selectedAnimal) return;
+        valHealth.innerText = Math.floor(selectedAnimal.health);
+        healthBar.style.width = `${selectedAnimal.health}%`;
+        valHappiness.innerText = Math.floor(selectedAnimal.happiness);
+        happinessBar.style.width = `${selectedAnimal.happiness}%`;
+    }
+
+    closeAnimalBtn.addEventListener('click', () => { animalModal.style.display = 'none'; stopMinigame(); });
+    playMinigameBtn.addEventListener('click', () => { playMinigameBtn.style.display = 'none'; minigameArea.style.display = 'block'; startMinigame(); });
+
+    function openBuildingModal(building, name) {
+        selectedBuilding = building;
+        buildModalTitle.innerText = name;
+        buildPriceInput.value = building.ticketPrice;
+        buildingModal.style.display = 'flex';
+    }
+
+    saveBuildBtn.addEventListener('click', () => {
+        if(selectedBuilding) {
+            selectedBuilding.ticketPrice = parseInt(buildPriceInput.value) || 0;
+            showMessage("Ticket Price Updated!", "var(--accent)");
+        }
+        buildingModal.style.display = 'none';
+    });
+
+    closeBuildBtn.addEventListener('click', () => { buildingModal.style.display = 'none'; });
+
+    // Minigame Logic
+    function startMinigame() { minigameActive = true; mgScore = 0; spawnMgTarget(); }
+
+    function spawnMgTarget() {
+        if (!minigameActive) return;
+        const oldTarget = minigameArea.querySelector('.mg-target');
+        if (oldTarget) oldTarget.remove();
+
+        if (mgScore >= 5) {
+            minigameActive = false;
+            selectedAnimal.health = 100; selectedAnimal.happiness = 100; selectedAnimal.isSick = false;
+            state.money += 10;
+            updateModalStats(); calculateAppeal(); updateHUD();
+            minigameArea.innerHTML = `<div style="color: var(--accent); padding-top: 50px; font-weight: bold;">🎉 Animal fully restored! (+$10)</div>`;
+            setTimeout(() => { animalModal.style.display = 'none'; stopMinigame(); }, 1600);
+            return;
+        }
+
+        const target = document.createElement('div');
+        target.className = 'mg-target';
+        target.innerHTML = selectedAnimal.emoji;
+        target.style.left = `${Math.floor(Math.random() * (minigameArea.clientWidth - 45))}px`;
+        target.style.top = `${Math.floor(Math.random() * (minigameArea.clientHeight - 45))}px`;
+        target.addEventListener('click', () => { mgScore++; spawnMgTarget(); });
+        minigameArea.appendChild(target);
+
+        mgTimer = setTimeout(() => { if (minigameActive) { target.remove(); spawnMgTarget(); } }, 1100);
+    }
+
+    function stopMinigame() {
+        minigameActive = false; clearTimeout(mgTimer);
+        minigameArea.innerHTML = `<div id="mg-instructions" style="font-size: 0.85em; color: var(--warning); padding: 10px;">Click the targets before they disappear!</div>`;
+    }
+
+    // Economy & Chores Loop
+    setInterval(() => {
+        let spawnChance = Math.min(0.95, 0.2 + (state.appeal / 300)); 
+        if (Math.random() < spawnChance) trySpawnVisitor();
+        if (state.appeal > 150 && Math.random() < (spawnChance * 0.6)) trySpawnVisitor();
+        if (state.appeal > 300 && Math.random() < (spawnChance * 0.4)) trySpawnVisitor();
+
+        let staffActions = state.staffCount;
+        while (staffActions > 0 && state.trash.length > 0) {
+            scene.remove(state.trash[0].mesh);
+            state.trash.shift();
+            state.money += 2;
+            staffActions--;
+        }
+
+        state.animals.forEach(a => {
+            if (a.happiness > 0) a.happiness -= 0.5;
+            if (a.health > 0 && a.isSick) a.health -= 1.0;
+            if (staffActions > 0 && a.isSick) {
+                a.isSick = false; a.health = Math.min(100, a.health + 40);
+                staffActions--;
+            } else if (Math.random() < 0.01 && !a.isSick) {
+                a.isSick = true;
+            }
+        });
+
+        if (Math.random() < 0.04 && state.trash.length < 10) {
+            let pathTiles = [];
+            for (let r=0; r<GRID_SIZE; r++) {
+                for (let c=0; c<GRID_SIZE; c++) {
+                    if (state.grid[r][c] === PATH) pathTiles.push({r, c});
+                }
+            }
+            if (pathTiles.length > 0) {
+                let randomTile = pathTiles[Math.floor(Math.random() * pathTiles.length)];
+                if (!state.trash.some(t => t.r === randomTile.r && t.c === randomTile.c)) {
+                    const pos = gridToWorld(randomTile.r, randomTile.c);
+                    const sprite = createEmojiSprite('🗑️', 0.6);
+                    sprite.position.set(pos.x, 0.3, pos.z);
+                    scene.add(sprite);
+                    state.trash.push({ r: randomTile.r, c: randomTile.c, mesh: sprite });
+                }
+            }
+        }
+
+        calculateAppeal();
+        let wages = state.staffCount * 12;
+        if (wages > 0) state.money = Math.max(0, state.money - wages / 10);
+
+        updateHUD();
+        if (animalModal.style.display === 'flex' && selectedAnimal) updateModalStats();
+    }, 1000);
+
+    // 3D Render & Visitor Movement Animation Loop
+    function animate(time) {
+        requestAnimationFrame(animate);
+
+        for (let i = state.visitorEntities.length - 1; i >= 0; i--) {
+            let v = state.visitorEntities[i];
+
+            if (v.state === 'DISAPPOINTED') {
+                v.timer--;
+                v.mesh.position.y = Math.sin(time * 0.01) * 0.05;
+                if (v.timer <= 0) {
+                    scene.remove(v.mesh);
+                    state.visitorEntities.splice(i, 1);
+                }
+                continue;
+            }
+
+            if (v.state === 'VISITING') {
+                v.timer--;
+                v.mesh.position.y = Math.sin(time * 0.008) * 0.05;
+                if (v.timer <= 0) {
+                    if (v.moodMesh) { v.mesh.remove(v.moodMesh); v.moodMesh = null; }
+                    v.path = v.path.slice().reverse();
+                    v.pathIndex = 0;
+                    v.progress = 0;
+                    v.state = 'LEAVING';
+                }
+                continue;
+            }
+
+            if (v.state === 'WALKING' || v.state === 'LEAVING') {
+                let currNode = v.path[v.pathIndex];
+                let nextNode = v.path[v.pathIndex + 1];
+
+                if (!nextNode) {
+                    if (v.state === 'LEAVING') {
+                        scene.remove(v.mesh);
+                        state.visitorEntities.splice(i, 1);
+                        state.visitors = state.visitorEntities.filter(v => v.state !== 'DISAPPOINTED').length;
+                        updateHUD();
+                        continue;
+                    }
+
+                    // REACHED ATTRACTION! Start visiting timer
+                    v.state = 'VISITING';
+                    v.timer = 600 + Math.floor(Math.random() * 300); 
+
+                    // Check neighbors to see what they are visiting and charge the set ticket price!
+                    let spend = 5; // Default zoo donation
+                    let moodEmoji = '😍';
+                    let neighbors = [
+                        {r: currNode.r-1, c: currNode.c}, {r: currNode.r+1, c: currNode.c},
+                        {r: currNode.r, c: currNode.c-1}, {r: currNode.r, c: currNode.c+1}
+                    ];
+
+                    for (let n of neighbors) {
+                        let ride = state.rides.find(r => r.r === n.r && r.c === n.c);
+                        if (ride) { spend = ride.ticketPrice; moodEmoji = RIDE_DATA[ride.type].emoji; break; }
+                        
+                        let shop = state.shops.find(s => s.r === n.r && s.c === n.c);
+                        if (shop) { spend = shop.ticketPrice; moodEmoji = SHOP_DATA[shop.type].emoji; break; }
+                        
+                        let animal = state.animals.find(a => a.r === n.r && a.c === n.c);
+                        if (animal) { moodEmoji = animal.emoji; break; } // Animals give a $5 donation
+                    }
+
+                    state.money += spend;
+                    updateHUD();
+
+                    // Show visual feedback of what they bought/visited
+                    v.moodMesh = createEmojiSprite(moodEmoji, 0.5);
+                    v.moodMesh.position.y = 0.95;
+                    v.mesh.add(v.moodMesh);
+                    continue;
+                }
+
+                v.progress += v.speed;
+                let startPos = gridToWorld(currNode.r, currNode.c);
+                let endPos = gridToWorld(nextNode.r, nextNode.c);
+
+                v.mesh.position.x = startPos.x + (endPos.x - startPos.x) * v.progress;
+                v.mesh.position.z = startPos.z + (endPos.z - startPos.z) * v.progress;
+                v.mesh.position.y = Math.abs(Math.sin(v.progress * Math.PI * 2)) * 0.1;
+
+                if (v.progress >= 1.0) {
+                    v.progress = 0;
+                    v.pathIndex++;
+                }
+            }
+        }
+        
+        state.animals.forEach((a, i) => {
+            if (a.mesh) a.mesh.position.y = 0.6 + Math.sin(time * 0.003 + i) * 0.08;
+        });
+
+        state.rides.forEach(rd => {
+            if (rd.mesh) rd.mesh.rotation.y += 0.01;
+        });
+
+        controls.update();
+        renderer.render(scene, camera);
+    }
+
+    updateHUD();
+    animate(0);
+
+</script>
+</body>
+</html>
