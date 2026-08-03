@@ -161,8 +161,13 @@ export class WorldManager {
         this.tiles[`${gx},${gz}`] = { type: 'habitat', subType: config.name, mesh };
     }
 
-    spawn3DAnimal(gx, gz, config) {
-        const group = new THREE.Group();
+    spawn3DAnimal(gx, gz, subItem, config) {
+        // Create the animal using your new modular Animals.js class
+        const newAnimal = new Animal(this.scene, subItem, config, gx, gz, this.tileSize);
+        
+        // Track it in the array so the game loop updates its animations
+        this.placedEntities.push(newAnimal);
+    }
 
         if (config.modelType === 'kangaroo') {
             // Procedural 3D Kangaroo Builder
