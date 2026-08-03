@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mini Planet Zoo 3D</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Three.js Library CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+    <!-- Top Game HUD Overlay -->
+    <div id="hud">
+        <div class="hud-item">💰 Money: $<span id="money-display">5000</span></div>
+        <div class="hud-item">👥 Visitors: <span id="visitor-display">0</span></div>
+        <div class="hud-item">⭐ Zoo Rating: <span id="rating-display">50</span>/100</div>
+    </div>
+
+    <!-- Container for Floating Thought Bubbles & 2D UI elements -->
+    <div id="ui-overlay"></div>
+
+    <!-- Bottom Build Toolbar -->
+    <div id="toolbar">
+        <button class="tool-btn active" data-tool="inspect">🔍 Inspect</button>
+        <button class="tool-btn" data-tool="path">🧱 Path</button>
+        <button class="tool-btn" data-tool="habitat">🌲 Habitat</button>
+        <button class="tool-btn" data-tool="animal">🦘 Add Animal</button>
+        <button class="tool-btn" data-tool="shop">🍔 Add Shop</button>
+        <button class="tool-btn" data-tool="bulldozer">🚜 Demolish</button>
+    </div>
+
+    <!-- Dynamic Sub-menu for item selections (e.g., picking Kangaroos vs Lions) -->
+    <div id="sub-menu" class="hidden"></div>
+
+    <!-- Three.js Rendering Canvas Container -->
+    <div id="canvas-container"></div>
+
+    <!-- Main JavaScript Entry Point (Modular) -->
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
