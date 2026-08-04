@@ -1,7 +1,7 @@
 import { GAME_CONFIG } from './config.js';
 import { Animal } from './Animals.js';
 import { Visitor } from './Visitor.js';
-import { Shop } from './Shop.js';
+import { Shop } from './shop.js';
 import { Staff } from './staff.js';
 
 export class WorldManager {
