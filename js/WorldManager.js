@@ -26,8 +26,18 @@ export class WorldManager {
         this.init();
     }
 
-    init() {
+   init() {
+        // Prevent WebGL context limit errors by cleaning up any existing renderer first
+        if (this.renderer) {
+            this.renderer.dispose();
+            this.renderer.forceContextLoss();
+            if (this.container.contains(this.renderer.domElement)) {
+                this.container.removeChild(this.renderer.domElement);
+            }
+        }
+
         // Setup Renderer
+        this.renderer = new THREE.WebGLRenderer({ antialias: true });
         this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
         this.renderer.setClearColor(0x1e272e);
         this.renderer.shadowMap.enabled = true;
@@ -67,7 +77,7 @@ export class WorldManager {
         window.addEventListener('resize', () => this.onWindowResize());
         this.container.addEventListener('click', (e) => this.onClick(e));
 
-        // Create initial starting pathway, initial visitor, and initial staff
+        // Create initial starting pathway and spawn initial entities
         this.createInitialWorld();
     }
 
