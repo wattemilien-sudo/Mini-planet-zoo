@@ -1,6 +1,7 @@
 import { GAME_CONFIG } from './config.js';
 import { Animal } from './Animals.js';
 import { Visitor } from './Visitor.js';
+import { Shop } from './Shop.js';
 
 export class WorldManager {
     constructor(containerId, state) {
@@ -15,9 +16,10 @@ export class WorldManager {
         // Grid and Map state tracking
         this.gridSize = 30;
         this.tileSize = 2;
-        this.tiles = {};             // Stores grid tiles (key: "x,z", value: { type, mesh })
+        this.tiles = {};             // Stores grid tiles (key: "x,z", value: { type, mesh, entity })
         this.placedEntities = [];    // Stores active animated 3D entities (animals)
         this.visitors = [];          // Stores walking visitors
+        this.shops = [];             // Stores active shops
 
         this.init();
     }
@@ -124,7 +126,11 @@ export class WorldManager {
 
         if (tool === 'bulldozer') {
             if (this.tiles[key]) {
-                this.scene.remove(this.tiles[key].mesh);
+                if (this.tiles[key].entity && typeof this.tiles[key].entity.destroy === 'function') {
+                    this.tiles[key].entity.destroy();
+                } else if (this.tiles[key].mesh) {
+                    this.scene.remove(this.tiles[key].mesh);
+                }
                 delete this.tiles[key];
                 this.state.money += 15; // Small refund
             }
@@ -154,7 +160,7 @@ export class WorldManager {
             const shopConfig = GAME_CONFIG.shops[subItem];
             if (shopConfig && this.state.money >= shopConfig.cost && !this.tiles[key]) {
                 this.state.money -= shopConfig.cost;
-                this.spawnShop(gx, gz, shopConfig);
+                this.spawnShop(gx, gz, subItem, shopConfig);
             }
         }
     }
@@ -173,17 +179,10 @@ export class WorldManager {
         this.placedEntities.push(newAnimal);
     }
 
-    spawnShop(gx, gz, config) {
-        const group = new THREE.Group();
-        const boothGeo = new THREE.BoxGeometry(1.2, 1.2, 1.2);
-        const mat = new THREE.MeshStandardMaterial({ color: 0xe67e22 });
-        const booth = new THREE.Mesh(boothGeo, mat);
-        booth.position.y = 0.6;
-        group.add(booth);
-
-        group.position.set(gx * this.tileSize, 0, gz * this.tileSize);
-        this.scene.add(group);
-        this.tiles[`${gx},${gz}`] = { type: 'shop', mesh: group };
+    spawnShop(gx, gz, subItem, config) {
+        const newShop = new Shop(this.scene, subItem, config, gx, gz, this.tileSize);
+        this.shops.push(newShop);
+        this.tiles[`${gx},${gz}`] = { type: 'shop', entity: newShop };
     }
 
     update(delta, time) {
@@ -198,6 +197,13 @@ export class WorldManager {
         this.visitors.forEach(visitor => {
             if (visitor.update) {
                 visitor.update(delta, time);
+            }
+        });
+
+        // Update shops (revenue generation)
+        this.shops.forEach(shop => {
+            if (shop.update) {
+                shop.update(delta, this.state);
             }
         });
 
