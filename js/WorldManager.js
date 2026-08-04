@@ -27,7 +27,6 @@ export class WorldManager {
     }
 
 init() {
-        // Completely wipe the container to prevent duplicate canvas / WebGL context leaks
         if (this.container) {
             this.container.innerHTML = '';
         } else {
@@ -35,12 +34,32 @@ init() {
             return;
         }
 
-        // Safely attempt to create the WebGL renderer with a fallback catch
+        // Programmatically check if WebGL is supported before running Three.js
+        const hasWebGL = (() => {
+            try {
+                const canvas = document.createElement('canvas');
+                return !!(window.WebGLRenderingContext && (canvas.getContext('webgl') || canvas.getContext('experimental-webgl')));
+            } catch (e) {
+                return false;
+            }
+        })();
+
+        if (!hasWebGL) {
+            this.container.innerHTML = `
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: white; font-family: sans-serif; text-align: center; padding: 20px;">
+                    <h3 style="color: #e74c3c; margin-bottom: 10px;">⚠️ WebGL Context Not Available</h3>
+                    <p style="font-size: 14px; color: #b2bec3; max-width: 400px; line-height: 1.5;">
+                        Your current environment or browser settings do not support WebGL 3D graphics. Please open this game link in a standard desktop browser (like Google Chrome or Microsoft Edge) with Hardware Acceleration enabled.
+                    </p>
+                </div>
+            `;
+            return;
+        }
+
         try {
             this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
         } catch (e) {
-            console.error("WebGL Context Creation Failed:", e);
-            alert("WebGL is not supported or is blocked in this browser/environment. This 3D game requires WebGL to run. Please try opening it in a standard desktop browser (like Chrome, Edge, or Firefox) with hardware acceleration enabled.");
+            console.error("Renderer creation failed:", e);
             return;
         }
 
@@ -86,7 +105,6 @@ init() {
         // Create initial starting pathway and spawn initial entities
         this.createInitialWorld();
     }
-
     createPathTile(x, z) {
         const geo = new THREE.BoxGeometry(this.tileSize * 0.95, 0.1, this.tileSize * 0.95);
         const mat = new THREE.MeshStandardMaterial({ color: 0x7f8c8d });
