@@ -1,5 +1,5 @@
 import { WorldManager } from './WorldManager.js';
-import { UIManager } from './uimanager.js'; // Ensure file name matches your project
+import { UIManager } from './uimanager.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     // Game global state
@@ -11,10 +11,8 @@ document.addEventListener('DOMContentLoaded', () => {
         selectedSubItem: null
     };
 
-    // Initialize World Manager ONCE
+    // Initialize managers
     const worldManager = new WorldManager('game-container', state);
-    
-    // Initialize UI Manager ONCE
     const uiManager = new UIManager(state, worldManager);
 
     // Main Game Loop
@@ -23,6 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const delta = (time - lastTime) / 1000;
         lastTime = time;
 
+        // Corrected from 'world' to 'worldManager'
         worldManager.update(delta, time);
         uiManager.update();
 
@@ -31,18 +30,3 @@ document.addEventListener('DOMContentLoaded', () => {
 
     requestAnimationFrame(gameLoop);
 });
-
-// Main Animation & Game Loop
-let lastTime = 0;
-function gameLoop(time) {
-    requestAnimationFrame(gameLoop);
-
-    const delta = (time - lastTime) / 1000;
-    lastTime = time;
-
-    // Update 3D world elements, animations, and physics
-    world.update(delta, time);
-}
-
-// Start the Loop
-requestAnimationFrame(gameLoop);
