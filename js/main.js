@@ -1,32 +1,38 @@
 import { WorldManager } from './WorldManager.js';
 import { UIManager } from './uimanager.js';
 
-document.addEventListener('DOMContentLoaded', () => {
-    // Game global state
-    const state = {
-        money: 2000,
-        visitors: 0,
-        rating: 50,
-        currentTool: null,
-        selectedSubItem: null
-    };
+// Prevent duplicate initialization loops
+if (window._gameInitialized) {
+    console.warn("Game already initialized.");
+} else {
+    window._gameInitialized = true;
 
-    // Initialize managers
-    const worldManager = new WorldManager('game-container', state);
-    const uiManager = new UIManager(state, worldManager);
+    document.addEventListener('DOMContentLoaded', () => {
+        // Game global state
+        const state = {
+            money: 2000,
+            visitors: 0,
+            rating: 50,
+            currentTool: null,
+            selectedSubItem: null
+        };
 
-    // Main Game Loop
-    let lastTime = performance.now();
-    function gameLoop(time) {
-        const delta = (time - lastTime) / 1000;
-        lastTime = time;
+        // Initialize managers
+        const worldManager = new WorldManager('game-container', state);
+        const uiManager = new UIManager(state, worldManager);
 
-        // Corrected from 'world' to 'worldManager'
-        worldManager.update(delta, time);
-        uiManager.update();
+        // Main Game Loop
+        let lastTime = performance.now();
+        function gameLoop(time) {
+            const delta = (time - lastTime) / 1000;
+            lastTime = time;
+
+            worldManager.update(delta, time);
+            uiManager.update();
+
+            requestAnimationFrame(gameLoop);
+        }
 
         requestAnimationFrame(gameLoop);
-    }
-
-    requestAnimationFrame(gameLoop);
-});
+    });
+}
