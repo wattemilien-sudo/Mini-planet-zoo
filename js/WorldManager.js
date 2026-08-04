@@ -35,8 +35,15 @@ init() {
             return;
         }
 
-        // Setup Renderer safely with high-performance preferences
-        this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+        // Safely attempt to create the WebGL renderer with a fallback catch
+        try {
+            this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+        } catch (e) {
+            console.error("WebGL Context Creation Failed:", e);
+            alert("WebGL is not supported or is blocked in this browser/environment. This 3D game requires WebGL to run. Please try opening it in a standard desktop browser (like Chrome, Edge, or Firefox) with hardware acceleration enabled.");
+            return;
+        }
+
         this.renderer.setSize(this.container.clientWidth || window.innerWidth, this.container.clientHeight || window.innerHeight);
         this.renderer.setClearColor(0x1e272e);
         this.renderer.shadowMap.enabled = true;
@@ -78,22 +85,6 @@ init() {
 
         // Create initial starting pathway and spawn initial entities
         this.createInitialWorld();
-    }
-    createInitialWorld() {
-        for (let x = -1; x <= 1; x++) {
-            for (let z = 12; z <= 14; z++) {
-                this.createPathTile(x, z);
-            }
-        }
-
-        // Spawn a starting visitor
-        const newVisitor = new Visitor(this.scene, 0, 13, this.tileSize);
-        this.visitors.push(newVisitor);
-        this.state.visitors = this.visitors.length;
-
-        // Spawn a starting staff member (zookeeper)
-        const newStaff = new Staff(this.scene, 'zookeeper', {}, 1, 13, this.tileSize);
-        this.staff.push(newStaff);
     }
 
     createPathTile(x, z) {
