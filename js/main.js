@@ -1,5 +1,5 @@
 import { WorldManager } from './WorldManager.js';
-import { UIManager } from './UIManager.js';
+import { UIManager } from './uimanger.js'; // or ./uiManger.js depending on your file name
 import { GAME_CONFIG } from './config.js';
 
 // Central Game State
