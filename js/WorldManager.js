@@ -1,5 +1,6 @@
 import { GAME_CONFIG } from './config.js';
 import { Animal } from './Animals.js';
+import { Visitor } from './Visitor.js';
 
 export class WorldManager {
     constructor(containerId, state) {
@@ -16,6 +17,7 @@ export class WorldManager {
         this.tileSize = 2;
         this.tiles = {};             // Stores grid tiles (key: "x,z", value: { type, mesh })
         this.placedEntities = [];    // Stores active animated 3D entities (animals)
+        this.visitors = [];          // Stores walking visitors
 
         this.init();
     }
@@ -61,7 +63,7 @@ export class WorldManager {
         window.addEventListener('resize', () => this.onWindowResize());
         this.container.addEventListener('click', (e) => this.onClick(e));
 
-        // Create initial starting pathway at the base of the map
+        // Create initial starting pathway and spawn initial visitor
         this.createInitialWorld();
     }
 
@@ -71,6 +73,11 @@ export class WorldManager {
                 this.createPathTile(x, z);
             }
         }
+
+        // Spawn a starting visitor
+        const newVisitor = new Visitor(this.scene, 0, 13, this.tileSize);
+        this.visitors.push(newVisitor);
+        this.state.visitors = this.visitors.length;
     }
 
     createPathTile(x, z) {
@@ -140,7 +147,7 @@ export class WorldManager {
             const animalConfig = GAME_CONFIG.animals[subItem];
             if (animalConfig && this.state.money >= animalConfig.cost) {
                 this.state.money -= animalConfig.cost;
-                this.spawn3DAnimal(gx, gz, animalConfig);
+                this.spawn3DAnimal(gx, gz, subItem, animalConfig);
                 this.state.rating += 8;
             }
         } else if (tool === 'shop') {
@@ -162,51 +169,8 @@ export class WorldManager {
     }
 
     spawn3DAnimal(gx, gz, subItem, config) {
-        // Create the animal using your new modular Animals.js class
         const newAnimal = new Animal(this.scene, subItem, config, gx, gz, this.tileSize);
-        
-        // Track it in the array so the game loop updates its animations
         this.placedEntities.push(newAnimal);
-    }
-
-        if (config.modelType === 'kangaroo') {
-            // Procedural 3D Kangaroo Builder
-            const furMaterial = new THREE.MeshStandardMaterial({ color: 0xd4a373, roughness: 0.7 });
-            
-            // Torso
-            const body = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.55, 0.35), furMaterial);
-            body.position.y = 0.45;
-            group.add(body);
-
-            // Head
-            const head = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.25, 0.3), furMaterial);
-            head.position.set(0, 0.8, 0.15);
-            group.add(head);
-
-            // Tail
-            const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.12, 0.5), furMaterial);
-            tail.rotation.x = Math.PI / 4;
-            tail.position.set(0, 0.35, -0.25);
-            group.add(tail);
-        } else {
-            // Default Quadruped Placeholder
-            const mat = new THREE.MeshStandardMaterial({ color: 0x95a5a6 });
-            const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.4, 0.8), mat);
-            body.position.y = 0.4;
-            group.add(body);
-        }
-
-        group.position.set(gx * this.tileSize, 0, gz * this.tileSize);
-        this.scene.add(group);
-
-        // Keep reference for animation updates in game loop
-        this.placedEntities.push({
-            type: 'animal',
-            mesh: group,
-            baseY: 0,
-            hopSpeed: 6 + Math.random() * 2,
-            offset: Math.random() * 10
-        });
     }
 
     spawnShop(gx, gz, config) {
@@ -223,11 +187,17 @@ export class WorldManager {
     }
 
     update(delta, time) {
-        // Animate placed 3D animals (hopping/bouncing effect)
+        // Animate placed 3D animals
         this.placedEntities.forEach(entity => {
-            if (entity.type === 'animal') {
-                const hop = Math.abs(Math.sin(time * 0.005 * entity.hopSpeed + entity.offset)) * 0.18;
-                entity.mesh.position.y = entity.baseY + hop;
+            if (entity.update) {
+                entity.update(delta, time);
+            }
+        });
+
+        // Animate visitors
+        this.visitors.forEach(visitor => {
+            if (visitor.update) {
+                visitor.update(delta, time);
             }
         });
 
