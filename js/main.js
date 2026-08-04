@@ -1,25 +1,35 @@
 import { WorldManager } from './WorldManager.js';
-import { UIManager } from './UIManager.js';
-import { GAME_CONFIG } from './config.js';
+import { UIManager } from './uimanager.js'; // Ensure file name matches your project
 
-// Central Game State
-const state = {
-    money: 5000,
-    visitors: 0,
-    rating: 50,
-    currentTool: 'inspect',
-    selectedSubItem: null
-};
+document.addEventListener('DOMContentLoaded', () => {
+    // Game global state
+    const state = {
+        money: 2000,
+        visitors: 0,
+        rating: 50,
+        currentTool: null,
+        selectedSubItem: null
+    };
 
-// Initialize Core Managers
-const world = new WorldManager('canvas-container', state);
-const ui = new UIManager(state, GAME_CONFIG);
+    // Initialize World Manager ONCE
+    const worldManager = new WorldManager('game-container', state);
+    
+    // Initialize UI Manager ONCE
+    const uiManager = new UIManager(state, worldManager);
 
-// Bind UI Toolbar Interactions with the 3D World
-ui.initToolbar((tool, subItem) => {
-    state.currentTool = tool;
-    state.selectedSubItem = subItem;
-    world.setActiveTool(tool, subItem);
+    // Main Game Loop
+    let lastTime = performance.now();
+    function gameLoop(time) {
+        const delta = (time - lastTime) / 1000;
+        lastTime = time;
+
+        worldManager.update(delta, time);
+        uiManager.update();
+
+        requestAnimationFrame(gameLoop);
+    }
+
+    requestAnimationFrame(gameLoop);
 });
 
 // Main Animation & Game Loop
