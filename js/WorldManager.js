@@ -2,6 +2,7 @@ import { GAME_CONFIG } from './config.js';
 import { Animal } from './Animals.js';
 import { Visitor } from './Visitor.js';
 import { Shop } from './Shop.js';
+import { Staff } from './staff.js';
 
 export class WorldManager {
     constructor(containerId, state) {
@@ -20,6 +21,7 @@ export class WorldManager {
         this.placedEntities = [];    // Stores active animated 3D entities (animals)
         this.visitors = [];          // Stores walking visitors
         this.shops = [];             // Stores active shops
+        this.staff = [];             // Stores active staff members
 
         this.init();
     }
@@ -65,7 +67,7 @@ export class WorldManager {
         window.addEventListener('resize', () => this.onWindowResize());
         this.container.addEventListener('click', (e) => this.onClick(e));
 
-        // Create initial starting pathway and spawn initial visitor
+        // Create initial starting pathway, initial visitor, and initial staff
         this.createInitialWorld();
     }
 
@@ -80,6 +82,10 @@ export class WorldManager {
         const newVisitor = new Visitor(this.scene, 0, 13, this.tileSize);
         this.visitors.push(newVisitor);
         this.state.visitors = this.visitors.length;
+
+        // Spawn a starting staff member (zookeeper)
+        const newStaff = new Staff(this.scene, 'zookeeper', {}, 1, 13, this.tileSize);
+        this.staff.push(newStaff);
     }
 
     createPathTile(x, z) {
@@ -197,6 +203,13 @@ export class WorldManager {
         this.visitors.forEach(visitor => {
             if (visitor.update) {
                 visitor.update(delta, time);
+            }
+        });
+
+        // Animate staff members
+        this.staff.forEach(member => {
+            if (member.update) {
+                member.update(delta, time, this.state);
             }
         });
 
