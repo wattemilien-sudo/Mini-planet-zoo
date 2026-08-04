@@ -26,19 +26,18 @@ export class WorldManager {
         this.init();
     }
 
-   init() {
-        // Prevent WebGL context limit errors by cleaning up any existing renderer first
-        if (this.renderer) {
-            this.renderer.dispose();
-            this.renderer.forceContextLoss();
-            if (this.container.contains(this.renderer.domElement)) {
-                this.container.removeChild(this.renderer.domElement);
-            }
+init() {
+        // Completely wipe the container to prevent duplicate canvas / WebGL context leaks
+        if (this.container) {
+            this.container.innerHTML = '';
+        } else {
+            console.error("Game container element not found!");
+            return;
         }
 
-        // Setup Renderer
-        this.renderer = new THREE.WebGLRenderer({ antialias: true });
-        this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
+        // Setup Renderer safely with high-performance preferences
+        this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+        this.renderer.setSize(this.container.clientWidth || window.innerWidth, this.container.clientHeight || window.innerHeight);
         this.renderer.setClearColor(0x1e272e);
         this.renderer.shadowMap.enabled = true;
         this.container.appendChild(this.renderer.domElement);
@@ -80,7 +79,6 @@ export class WorldManager {
         // Create initial starting pathway and spawn initial entities
         this.createInitialWorld();
     }
-
     createInitialWorld() {
         for (let x = -1; x <= 1; x++) {
             for (let z = 12; z <= 14; z++) {
